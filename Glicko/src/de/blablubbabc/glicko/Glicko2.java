@@ -31,6 +31,9 @@ import java.util.List;
  */
 public class Glicko2 {
 
+	private Glicko2() {
+	}
+
 	/**
 	 * The initial rating.
 	 */
