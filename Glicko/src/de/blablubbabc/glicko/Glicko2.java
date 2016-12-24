@@ -103,8 +103,16 @@ public class Glicko2 {
 			return rating;
 		}
 
+		double getScaledRating() {
+			return ratingScaled;
+		}
+
 		public double getDeviation() {
 			return deviation;
+		}
+
+		double getScaledDeviation() {
+			return deviationScaled;
 		}
 
 		public double getVolatility() {
@@ -112,19 +120,19 @@ public class Glicko2 {
 		}
 	}
 
-	private static double scaleRating(double rating) {
+	static double scaleRating(double rating) {
 		return (rating - DEFAULT_RATING) / GLICKO_SCALE;
 	}
 
-	private static double unscaleRating(double rating) {
+	static double unscaleRating(double rating) {
 		return (rating * GLICKO_SCALE) + DEFAULT_RATING;
 	}
 
-	private static double scaleDeviation(double deviation) {
+	static double scaleDeviation(double deviation) {
 		return deviation / GLICKO_SCALE;
 	}
 
-	private static double unscaleDeviation(double deviation) {
+	static double unscaleDeviation(double deviation) {
 		return deviation * GLICKO_SCALE;
 	}
 
@@ -161,7 +169,7 @@ public class Glicko2 {
 			Rating opponent = opponents.get(i);
 			double score = scores.get(i).doubleValue();
 
-			double g = g(opponent.deviationScaled);
+			double g = g(opponent.getScaledDeviation());
 			double E = E(rating, opponent);
 
 			v += (g * g * E * (1.0D - E));
@@ -170,30 +178,30 @@ public class Glicko2 {
 		v = 1.0D / v;
 
 		// step 5.1
-		double a = Math.log(rating.volatility * rating.volatility);
+		double a = Math.log(rating.getVolatility() * rating.getVolatility());
 		// step 5.2
 		double A = a;
 		double delta2 = (delta * delta);
-		double deviation2 = (rating.deviationScaled * rating.deviationScaled);
+		double deviation2 = (rating.getScaledDeviation() * rating.getScaledDeviation());
 		double B;
 		if (delta2 > (deviation2 + v)) {
 			B = Math.log(delta2 - (deviation2 + v));
 		} else {
 			int k = 1;
-			while (f(a - (k * VOLATILITY_CONSTRAINT), rating.deviationScaled, v, delta, a) < 0.0D) {
+			while (f(a - (k * VOLATILITY_CONSTRAINT), rating.getScaledDeviation(), v, delta, a) < 0.0D) {
 				k++;
 			}
 			B = a - (k * VOLATILITY_CONSTRAINT);
 		}
 
 		// step 5.3
-		double fA = f(A, rating.deviationScaled, v, delta, a);
-		double fB = f(B, rating.deviationScaled, v, delta, a);
+		double fA = f(A, rating.getScaledDeviation(), v, delta, a);
+		double fB = f(B, rating.getScaledDeviation(), v, delta, a);
 
 		// step 5.4
 		while (Math.abs(B - A) > CONVERGENCE_TOLERANCE) {
 			double C = A + (A - B) * fA / (fB - fA);
-			double fC = f(C, rating.deviationScaled, v, delta, a);
+			double fC = f(C, rating.getScaledDeviation(), v, delta, a);
 			if ((fC * fB) < 0.0D) {
 				A = B;
 				fA = fB;
@@ -220,10 +228,10 @@ public class Glicko2 {
 		for (int i = 0; i < opponents.size(); i++) {
 			Rating opponent = opponents.get(i);
 			double score = scores.get(i).doubleValue();
-			newRating += (g(opponent.deviationScaled) * (score - E(rating, opponent)));
+			newRating += (g(opponent.getScaledDeviation()) * (score - E(rating, opponent)));
 		}
 		newRating *= (newDeviation * newDeviation);
-		newRating += rating.ratingScaled;
+		newRating += rating.getScaledRating();
 
 		// step 8: unscale results
 		newDeviation = unscaleDeviation(newDeviation);
@@ -233,18 +241,18 @@ public class Glicko2 {
 		rating.update(newRating, newDeviation, newVolatility);
 	}
 
-	private static double g(double deviation) {
-		return 1.0D / (Math.sqrt(1.0D + 3.0D * (deviation * deviation) / (Math.PI * Math.PI)));
+	static double g(double scaledDeviation) {
+		return 1.0D / (Math.sqrt(1.0D + 3.0D * (scaledDeviation * scaledDeviation) / (Math.PI * Math.PI)));
 	}
 
-	private static double E(Rating rating1, Rating rating2) {
+	static double E(Rating rating1, Rating rating2) {
 		assert rating1 != null && rating2 != null;
-		return 1.0D / (1.0D + Math.exp(-g(rating2.deviation) * (rating1.rating - rating2.rating)));
+		return 1.0D / (1.0D + Math.exp(-g(rating2.getScaledDeviation()) * (rating1.getScaledRating() - rating2.getScaledRating())));
 	}
 
-	private static double f(double x, double deviation, double v, double delta, double a) {
+	static double f(double x, double scaledDeviation, double v, double delta, double a) {
 		double eX = Math.pow(Math.E, x);
-		double temp = ((deviation * deviation) + v + eX);
+		double temp = ((scaledDeviation * scaledDeviation) + v + eX);
 		return ((eX * ((delta * delta) - temp)) / (2.0D * temp * temp)) - ((x - a) / (VOLATILITY_CONSTRAINT * VOLATILITY_CONSTRAINT));
 	}
 }
